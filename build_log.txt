@@ -1,0 +1,16 @@
+src/components/Charts.tsx(38,38): error TS6133: 'a' is declared but its value is never read.
+src/components/Charts.tsx(38,40): error TS6133: 'b' is declared but its value is never read.
+src/components/Charts.tsx(58,57): error TS18048: 'percent' is possibly 'undefined'.
+src/components/Charts.tsx(63,34): error TS6133: 'entry' is declared but its value is never read.
+src/components/Charts.tsx(67,30): error TS2322: Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/components/Charts.tsx(83,30): error TS2322: Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/components/TransactionForm.tsx(3,10): error TS1484: 'Category' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/TransactionForm.tsx(3,20): error TS1484: 'TransactionType' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/store/useStore.ts(3,10): error TS1484: 'FinancialState' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/store/useStore.ts(3,26): error TS1484: 'Transaction' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
