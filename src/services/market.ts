@@ -24,31 +24,47 @@ export const marketService = {
     async getQuotes(tickers: string[]): Promise<Record<string, MarketQuote>> {
         if (tickers.length === 0) return {};
 
-        const symbols = tickers.join(',');
+        // Use token from env or fallback to public
+        const token = import.meta.env.VITE_BRAPI_TOKEN || 'public';
+        const quotes: Record<string, MarketQuote> = {};
+
         try {
-            // Note: Brapi free tier might have limits. 
-            // We use 'token=public' just as an example key often used in docs, or empty.
-            // Replace with user's token if available.
-            const response = await fetch(`${BRAPI_BASE_URL}/${symbols}?token=public`); 
-            
-            if (!response.ok) {
-                console.warn('Market API limit or error, falling back to basic checks');
-                return {};
-            }
+            // Fetch each ticker individually in parallel to avoid "multiple assets" limitation if using public/free tier
+            const fetchPromises = tickers.map(async (symbol) => {
+                try {
+                    const response = await fetch(`${BRAPI_BASE_URL}/${symbol}?token=${token}`);
+                    
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            console.error(`Brapi API Unauthorized for ${symbol}: Check VITE_BRAPI_TOKEN`);
+                        } else {
+                            console.warn(`Market API error for ${symbol} (${response.status})`);
+                        }
+                        return null;
+                    }
 
-            const data = await response.json() as BrapiResponse;
-            const quotes: Record<string, MarketQuote> = {};
+                    const data = await response.json() as BrapiResponse;
+                    if (data.results && data.results.length > 0) {
+                        return data.results[0];
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch quote for ${symbol}`, err);
+                }
+                return null;
+            });
 
-            if (data.results) {
-                data.results.forEach((item) => {
+            const results = await Promise.all(fetchPromises);
+
+            results.forEach((item) => {
+                if (item) {
                     quotes[item.symbol] = {
                         symbol: item.symbol,
                         currentPrice: item.regularMarketPrice,
                         changePercent: item.regularMarketChangePercent,
                         updatedAt: new Date().toISOString()
                     };
-                });
-            }
+                }
+            });
 
             return quotes;       
         } catch (error) {

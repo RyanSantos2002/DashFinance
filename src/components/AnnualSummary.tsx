@@ -10,38 +10,32 @@ export const AnnualSummary: React.FC = () => {
     const { transactions, investments } = useStore();
     const currentYear = new Date().getFullYear();
 
-    const totalInvested = useMemo(() => {
-        return (investments || []).reduce((acc, curr) => acc + curr.currentValue, 0);
-    }, [investments]);
-
     const annualData = useMemo(() => {
         const data = Array.from({ length: 12 }, (_, i) => ({
             month: i,
             income: 0,
             expense: 0,
+            investment: 0,
             balance: 0
         }));
 
         // Helper to add value to a specific month
-        const addValue = (monthIndex: number, amount: number, type: 'income' | 'expense') => {
+        const addValue = (monthIndex: number, amount: number, type: 'income' | 'expense' | 'investment') => {
             if (monthIndex >= 0 && monthIndex < 12) {
                 if (type === 'income') data[monthIndex].income += amount;
-                else data[monthIndex].expense += amount;
+                else if (type === 'expense') data[monthIndex].expense += amount;
+                else if (type === 'investment') data[monthIndex].investment += amount;
             }
         };
 
         // 1. Process Fixed Transactions (Project for whole year)
-        // We assume fixed transactions apply to all remaining months or all months if not specified
-        // For simplicity in this projection, we project strictly monthly fixed items for the whole year 
-        // to give a baseline, but ideally we check start dates. 
-        // Here we'll scan "isFixed" items and apply them to all months.
         transactions.filter(t => t.isFixed).forEach(t => {
             for (let i = 0; i < 12; i++) {
                 addValue(i, t.amount, t.type);
             }
         });
 
-        // 2. Process Existing & Future Transactions (Installments, Scheduled)
+        // 2. Process Existing & Future Transactions
         transactions.filter(t => !t.isFixed).forEach(t => {
             const date = new Date(t.date);
             if (date.getFullYear() === currentYear) {
@@ -49,17 +43,26 @@ export const AnnualSummary: React.FC = () => {
             }
         });
 
-        // Calculate balances
-        data.forEach(m => m.balance = m.income - m.expense);
+        // 3. Process Investments (Treat as outflow for cash flow purposes)
+        investments.forEach(inv => {
+            const date = new Date(inv.date);
+            if (date.getFullYear() === currentYear) {
+                addValue(date.getMonth(), inv.amountInvested, 'investment');
+            }
+        });
+
+        // Calculate balances: Income - Expenses - Investments
+        data.forEach(m => m.balance = m.income - m.expense - m.investment);
 
         return data;
-    }, [transactions, currentYear]);
+    }, [transactions, investments, currentYear]);
 
     const annualTotal = annualData.reduce((acc, curr) => ({
         income: acc.income + curr.income,
         expense: acc.expense + curr.expense,
+        investment: acc.investment + curr.investment,
         balance: acc.balance + curr.balance
-    }), { income: 0, expense: 0, balance: 0 });
+    }), { income: 0, expense: 0, investment: 0, balance: 0 });
 
     return (
         <div className="space-y-6">
@@ -122,7 +125,7 @@ export const AnnualSummary: React.FC = () => {
                                  </div>
                                  <div className="flex justify-between text-gray-500 dark:text-gray-400">
                                      <span>Investimentos</span>
-                                     <span className="text-blue-500 dark:text-blue-400">{formatCurrency(totalInvested)}</span>
+                                     <span className="text-blue-500 dark:text-blue-400">{formatCurrency(data.investment)}</span>
                                  </div>
                                  <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between font-bold">
                                      <span className="text-gray-700 dark:text-gray-300">Saldo</span>

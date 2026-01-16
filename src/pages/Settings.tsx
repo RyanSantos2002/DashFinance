@@ -72,11 +72,18 @@ export const Settings: React.FC = () => {
         setLoading(true);
         setMessage(null);
         try {
-            const amount = parseFloat(salary);
+            // Handle empty string or 0 as removal
+            const amount = salary === '' ? 0 : parseFloat(salary);
             if (isNaN(amount)) throw new Error('Valor inválido');
             
             await setFixedSalary(amount);
-            setMessage({ type: 'success', text: 'Salário fixo atualizado!' });
+            
+            if (amount === 0) {
+                setMessage({ type: 'success', text: 'Salário fixo removido!' });
+                setSalary('');
+            } else {
+                setMessage({ type: 'success', text: 'Salário fixo atualizado!' });
+            }
         } catch {
              setMessage({ type: 'error', text: 'Erro ao salvar salário.' });
         } finally {

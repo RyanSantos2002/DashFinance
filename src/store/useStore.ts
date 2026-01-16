@@ -179,29 +179,34 @@ export const useStore = create<FinancialStore>()(
                 const { currentUser, transactions } = get();
                 if (!currentUser) return;
 
-                // Find existing salary transaction
-                const existingSalary = transactions.find(t => 
+                // 1. Identify ALL existing fixed salary transactions to clean up duplicates
+                const existingSalaries = transactions.filter(t => 
                     t.type === 'income' && 
                     t.isFixed && 
                     t.description === 'Salário Mensal'
                 );
 
-                if (existingSalary) {
-                     // Update existing
-                     await transactionService.addTransaction({
-                         ...existingSalary,
-                         amount: amount
-                     }).then(() => {
-                         // Optimistic update handled or force re-fetch
-                          set((state) => ({
-                              transactions: state.transactions.map(t => 
-                                  t.id === existingSalary.id ? { ...t, amount } : t
-                              )
-                          }));
-                     });
-                } else {
-                    // Create new
-                    const newTx: Omit<Transaction, 'id' | 'userId'> = {
+                // 2. Remove them from local state immediately (optimistic cleanup)
+                if (existingSalaries.length > 0) {
+                    set((state) => ({
+                        transactions: state.transactions.filter(t => 
+                            !(t.type === 'income' && t.isFixed && t.description === 'Salário Mensal')
+                        )
+                    }));
+
+                    // 3. Remove from DB in background
+                    existingSalaries.forEach(async (t) => {
+                        try {
+                            await transactionService.removeTransaction(t.id);
+                        } catch (e) {
+                            console.error('Failed to cleanup old salary', e);
+                        }
+                    });
+                }
+
+                // 3. If amount > 0, add the new salary
+                if (amount > 0) {
+                     const newTx: Omit<Transaction, 'id' | 'userId'> = {
                         description: 'Salário Mensal',
                         amount: amount,
                         type: 'income',
@@ -210,8 +215,7 @@ export const useStore = create<FinancialStore>()(
                         isFixed: true,
                         installment: undefined
                     };
-                    // Rewrite addTransaction to be public or use logic here? 
-                    // Reuse addTransaction for simplicity
+                    // Use internal helper or just call the action
                     get().addTransaction(newTx);
                 }
             },
