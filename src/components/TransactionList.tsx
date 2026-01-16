@@ -4,19 +4,22 @@ import { formatDate, formatCurrency } from '../utils/format';
 import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-export const TransactionList: React.FC = () => {
+interface TransactionListProps {
+  limit?: number;
+}
+
+export const TransactionList: React.FC<TransactionListProps> = ({ limit }) => {
   const { transactions, removeTransaction, selectedDate } = useStore();
 
   const sortedTransactions = [...transactions]
     .filter(t => {
       const tDate = new Date(t.date);
       const sDate = new Date(selectedDate);
-      // Filter by selected month/year OR if it's a fixed expense (optional, usually lists show specific instances)
-      // For a "History" list, we usually want to see what happened in that specific month.
       return tDate.getMonth() === sDate.getMonth() && 
              tDate.getFullYear() === sDate.getFullYear();
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, limit); // Apply limit
 
   if (transactions.length === 0) {
     return (
@@ -26,11 +29,16 @@ export const TransactionList: React.FC = () => {
     );
   }
 
+  const Container = limit ? React.Fragment : 'div';
+  const containerProps = limit ? {} : { className: "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors" };
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Histórico Recente</h3>
-      </div>
+    <Container {...containerProps}>
+      {!limit && (
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Histórico Recente</h3>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
           <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs uppercase font-semibold text-gray-500 dark:text-gray-400">
@@ -73,6 +81,6 @@ export const TransactionList: React.FC = () => {
           </tbody>
         </table>
       </div>
-    </div>
+    </Container>
   );
 };

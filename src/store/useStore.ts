@@ -1,93 +1,296 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { FinancialState, Transaction } from '../types';
+import { type FinancialState, type Transaction, type User, type Investment } from '../types';
+import { transactionService } from '../services/transactions';
+import { investmentService } from '../services/investments';
 
-export const useStore = create<FinancialState>()(
-  persist(
-    (set, get) => ({
-      transactions: [],
-      currentUser: null,
-      theme: 'light',
-      selectedDate: new Date().toISOString(),
-      
-      login: (name) => {
-        // Simple "login" - generates a stable ID based on name or just random if not strict
-        // For simplicity reusing name as ID prefix or just simple object hash in real app
-        // Here we just mock an ID based on name for persistence across reload if name matches
-        const id = btoa(name.toLowerCase()); 
-        set({ currentUser: { id, name } });
-      },
+interface FinancialStore extends FinancialState {
+    setCurrentUser: (user: User | null) => void;
+    fetchTransactions: () => Promise<void>;
+    updateProfile: (updates: { name?: string; avatar?: string }) => Promise<void>;
+    setFixedSalary: (amount: number) => Promise<void>;
+    
+    // Investments
+    investments: Investment[];
+    fetchInvestments: () => Promise<void>;
+    addInvestment: (investment: Omit<Investment, 'id' | 'userId'>) => Promise<void>;
+    removeInvestment: (id: string) => Promise<void>;
 
-      logout: () => set({ currentUser: null }),
-      
-      setSelectedDate: (date) => set({ selectedDate: date }),
+    // Loading States
+    isTransactionsLoading: boolean;
+    isProfileLoading: boolean;
+    isInvestmentsLoading: boolean;
+}
 
-      toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
-
-      addTransaction: (transaction) => {
-        const { currentUser } = get();
-        if (!currentUser) return;
-
-        const newTransaction: Transaction = {
-          ...transaction,
-          id: crypto.randomUUID(),
-          userId: currentUser.id,
-        };
-        set((state) => ({
-          transactions: [newTransaction, ...state.transactions],
-        }));
-      },
-
-      removeTransaction: (id) => {
-        set((state) => ({
-          transactions: state.transactions.filter((t) => t.id !== id),
-        }));
-      },
-
-      editTransaction: (id, updated) => {
-        set((state) => ({
-          transactions: state.transactions.map((t) =>
-            t.id === id ? { ...t, ...updated } : t
-          ),
-        }));
-      },
-
-      getSummary: () => {
-        const { transactions, currentUser, selectedDate } = get();
-        // Filter transactions for current user AND selected month
-        const targetDate = new Date(selectedDate);
-        
-        const userTransactions = transactions.filter(t => {
-            if (t.userId !== currentUser?.id) return false;
+export const useStore = create<FinancialStore>()(
+    persist(
+        (set, get) => ({
+            transactions: [],
+            investments: [],
+            currentUser: null,
+            theme: 'light', 
+            selectedDate: new Date().toISOString(),
+            reservationBalance: 0,
             
-            // Allow fixed expenses OR matching month/year
-            // For summary we generally want "what happened in this month"
-            // So: Fixed expenses (active) + Variable/Installments in this month
-            const tDate = new Date(t.date);
-            const isSameMonth = tDate.getMonth() === targetDate.getMonth() && 
-                                tDate.getFullYear() === targetDate.getFullYear();
+            // Initial Loading States
+            isTransactionsLoading: false,
+            isProfileLoading: false,
+            isInvestmentsLoading: false,
+
+            login: () => {}, 
+            logout: async () => {
+                const { supabase } = await import('../lib/supabase');
+                await supabase.auth.signOut();
+                set({ currentUser: null, transactions: [] });
+            },
             
-            if (t.isFixed && t.type === 'expense') return true; // Fixed counts every month
-            return isSameMonth;
-        });
+            setCurrentUser: (user) => set({ currentUser: user }),
 
-        const totalIncome = userTransactions
-          .filter((t) => t.type === 'income')
-          .reduce((acc, t) => acc + t.amount, 0);
-        
-        const totalExpense = userTransactions
-          .filter((t) => t.type === 'expense')
-          .reduce((acc, t) => acc + t.amount, 0);
+            setSelectedDate: (date) => set({ selectedDate: date }),
+            
+            toggleTheme: () => set((state) => {
+                const newTheme = state.theme === 'light' ? 'dark' : 'light';
+                // Side effect is handled by Layout effect, but keeping it for immediate feeling
+                if (typeof window !== 'undefined') {
+                    if (newTheme === 'dark') document.documentElement.classList.add('dark');
+                    else document.documentElement.classList.remove('dark');
+                }
+                return { theme: newTheme };
+            }),
 
-        return {
-          totalIncome,
-          totalExpense,
-          balance: totalIncome - totalExpense,
-        };
-      },
-    }),
-    {
-      name: 'financial-storage',
-    }
-  )
+            // Sync with DB
+            fetchTransactions: async () => {
+                const user = get().currentUser;
+                if (!user) return;
+                
+                set({ isTransactionsLoading: true });
+                
+                try {
+                    const data = await transactionService.fetchTransactions(user.id);
+                    set({ transactions: data });
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    set({ isTransactionsLoading: false });
+                }
+            },
+
+            addTransaction: async (transaction) => {
+                const user = get().currentUser;
+                if (!user) return;
+                
+                // Optimistic update
+                const tempId =  crypto.randomUUID();
+                const newTx: Transaction = { ...transaction, id: tempId, userId: user.id };
+                
+                set((state) => ({ transactions: [newTx, ...state.transactions] }));
+
+                try {
+                    // DB Sync
+                    const savedTx = await transactionService.addTransaction({ ...transaction, userId: user.id});
+                    // Replace temp with real
+                    set((state) => ({
+                        transactions: state.transactions.map(t => t.id === tempId ? savedTx : t)
+                    }));
+                } catch (error) {
+                    console.error("Failed to save transaction", error);
+                    // Rollback
+                    set((state) => ({ transactions: state.transactions.filter(t => t.id !== tempId) }));
+                }
+            },
+
+            removeTransaction: async (id) => {
+                const prev = get().transactions;
+                set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
+                
+                try {
+                    await transactionService.removeTransaction(id);
+                } catch (error) {
+                    console.error("Failed to delete", error);
+                    set({ transactions: prev }); // Rollback
+                }
+            },
+
+            editTransaction: (id, updated) => {
+                // TODO: Implement update in service
+                set((state) => ({
+                    transactions: state.transactions.map((t) =>
+                        t.id === id ? { ...t, ...updated } : t
+                    ),
+                }));
+            },
+
+            addToReservation: (amount) => set((state) => ({ reservationBalance: (state.reservationBalance || 0) + amount })),
+            
+            updateLayout: (page, layout) => set((state) => {
+                if (!state.currentUser) return state;
+                const layouts = state.currentUser.dashboardLayouts || { principal: [], analytics: [] };
+                // Ideally save to DB profile here
+                return {
+                    currentUser: {
+                        ...state.currentUser,
+                        dashboardLayouts: {
+                            ...layouts,
+                            [page]: layout
+                        }
+                    }
+                };
+            }),
+
+            updateProfile: async ({ name, avatar }) => {
+                const { currentUser } = get();
+                if (!currentUser) return;
+                
+                try {
+                    set({ isProfileLoading: true });
+                    
+                    // Call Supabase to update profile
+                    const { supabase } = await import('../lib/supabase');
+                    const updates: { updated_at: string; full_name?: string; avatar_url?: string } = { 
+                        updated_at: new Date().toISOString() 
+                    };
+                    if (name) updates.full_name = name;
+                    if (avatar) updates.avatar_url = avatar;
+
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update(updates)
+                        .eq('id', currentUser.id);
+
+                    if (error) throw error;
+                    
+                    // Update local state
+                    set((state) => ({
+                        currentUser: state.currentUser ? { 
+                            ...state.currentUser, 
+                            name: name || state.currentUser.name,
+                            avatar: avatar || state.currentUser.avatar
+                        } : null,
+                        isProfileLoading: false
+                    }));
+                } catch (error) {
+                    console.error('Error updating profile:', error);
+                    set({ isProfileLoading: false });
+                    throw error;
+                }
+            },
+
+            setFixedSalary: async (amount) => {
+                const { currentUser, transactions } = get();
+                if (!currentUser) return;
+
+                // Find existing salary transaction
+                const existingSalary = transactions.find(t => 
+                    t.type === 'income' && 
+                    t.isFixed && 
+                    t.description === 'Salário Mensal'
+                );
+
+                if (existingSalary) {
+                     // Update existing
+                     await transactionService.addTransaction({
+                         ...existingSalary,
+                         amount: amount
+                     }).then(() => {
+                         // Optimistic update handled or force re-fetch
+                          set((state) => ({
+                              transactions: state.transactions.map(t => 
+                                  t.id === existingSalary.id ? { ...t, amount } : t
+                              )
+                          }));
+                     });
+                } else {
+                    // Create new
+                    const newTx: Omit<Transaction, 'id' | 'userId'> = {
+                        description: 'Salário Mensal',
+                        amount: amount,
+                        type: 'income',
+                        category: 'Salário',
+                        date: new Date().toISOString(),
+                        isFixed: true,
+                        installment: undefined
+                    };
+                    // Rewrite addTransaction to be public or use logic here? 
+                    // Reuse addTransaction for simplicity
+                    get().addTransaction(newTx);
+                }
+            },
+
+            // Investments Actions
+            fetchInvestments: async () => {
+                const user = get().currentUser;
+                if (!user) return;
+                try { 
+                    const data = await investmentService.fetchInvestments(user.id);
+                    set({ investments: data });
+                } catch (error) {
+                    console.error('Fetch investments error:', error);
+                }
+            },
+
+            addInvestment: async (investment) => {
+                const user = get().currentUser;
+                if (!user) return;
+                set({ isInvestmentsLoading: true });
+                try {
+                     // Optimistic
+                    const tempId = crypto.randomUUID();
+                    const newInv: Investment = { ...investment, id: tempId, userId: user.id, date: new Date().toISOString() };
+                    set(state => ({ investments: [newInv, ...state.investments] }));
+
+                    // DB
+                    const saved = await investmentService.addInvestment({ ...investment, userId: user.id });
+                    set(state => ({ 
+                        investments: state.investments.map(i => i.id === tempId ? saved : i),
+                        isInvestmentsLoading: false
+                    }));
+                } catch (error) {
+                    console.error(error);
+                    set({ isInvestmentsLoading: false });
+                    // Should revert logic here ideally
+                }
+            },
+
+            removeInvestment: async (id) => {
+                 const prev = get().investments;
+                 set(state => ({ investments: state.investments.filter(i => i.id !== id) }));
+                 try {
+                     await investmentService.removeInvestment(id);
+                 } catch (error) {
+                     console.error(error);
+                     set({ investments: prev });
+                 }
+            },
+
+            getSummary: () => {
+                const { transactions, selectedDate, reservationBalance } = get();
+                const year = new Date(selectedDate).getFullYear();
+                const month = new Date(selectedDate).getMonth();
+
+                const filtered = transactions.filter((t) => {
+                    const d = new Date(t.date);
+                    return d.getFullYear() === year && d.getMonth() === month;
+                });
+
+                const totalIncome = filtered
+                    .filter((t) => t.type === 'income')
+                    .reduce((acc, curr) => acc + curr.amount, 0);
+
+                const totalExpense = filtered
+                    .filter((t) => t.type === 'expense')
+                    .reduce((acc, curr) => acc + curr.amount, 0);
+
+                return {
+                    totalIncome,
+                    totalExpense,
+                    balance: totalIncome - totalExpense,
+                    reservation: reservationBalance || 0
+                };
+            },
+        }),
+        {
+            name: 'dashfinance-storage',
+            partialize: (state) => ({ theme: state.theme }), // Only persist theme
+        }
+    )
 );

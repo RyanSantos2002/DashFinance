@@ -8,7 +8,11 @@ const CATEGORIES: Category[] = [
   'Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Outros'
 ];
 
-export const TransactionForm: React.FC = () => {
+interface TransactionFormProps {
+  onSuccess?: () => void;
+}
+
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) => {
   const addTransaction = useStore((state) => state.addTransaction);
   const [formData, setFormData] = useState({
     description: '',
@@ -61,19 +65,24 @@ export const TransactionForm: React.FC = () => {
       ...prev, 
       description: '', 
       amount: '', 
+      category: 'Outros', // Reset category
       isFixed: false, 
       isInstallment: false, 
       installments: 2 
     }));
+
+    if (onSuccess) {
+        onSuccess();
+    }
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors h-full flex flex-col">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
         <PlusCircle size={20} className="text-primary dark:text-blue-400" />
         Nova Transação
       </h3>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col">
         {/* Row 1: Description and Value */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
@@ -204,7 +213,7 @@ export const TransactionForm: React.FC = () => {
 
         <button
           type="submit"
-          className="w-full bg-primary text-white font-medium py-3 rounded-lg hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-sm mt-4 active:scale-[0.99] h-[50px] flex items-center justify-center"
+          className="w-full bg-primary text-white font-medium py-3 rounded-lg hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-sm mt-auto active:scale-[0.99] h-[50px] flex items-center justify-center"
         >
           Adicionar Transação
         </button>
