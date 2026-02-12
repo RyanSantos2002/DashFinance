@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { UserPlus, Mail, Lock, User, Loader2, DollarSign } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Loader2, DollarSign, CheckCircle, ArrowRight } from 'lucide-react';
 
 export const SignUp: React.FC = () => {
   const [name, setName] = useState('');
@@ -9,7 +9,7 @@ export const SignUp: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +25,7 @@ export const SignUp: React.FC = () => {
           data: {
             full_name: name,
           },
+          emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 
@@ -32,9 +33,6 @@ export const SignUp: React.FC = () => {
 
       if (data.user) {
         // 2. Criar perfil na tabela pública (caso a trigger não faça ou pra garantir dados extras)
-        // Se já tiver trigger, isso pode dar erro de duplicidade ou update. 
-        // Vamos assumir comportamento padrão: Trigger cria, ou a gente cria se não tiver.
-        // O mais seguro pra um "MVP robusto" sem depender de triggers mágicas é tentar upsert.
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -46,12 +44,10 @@ export const SignUp: React.FC = () => {
           
          if (profileError) {
              console.error("Profile creation error", profileError);
-             // Não vamos travar o cadastro por erro de perfil se o auth funcionou
          }
 
         // Sucesso
-        alert('Conta criada com sucesso! Faça login para continuar.');
-        navigate('/login');
+        setSuccess(true);
       }
     } catch (err) {
       console.error('Signup error:', err);
@@ -73,81 +69,107 @@ export const SignUp: React.FC = () => {
           <p className="text-gray-500 mt-2">Comece a controlar suas finanças hoje</p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm text-center border border-red-100">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSignUp} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Seu nome"
-              />
+        {success ? (
+          <div className="text-center">
+            <div className="bg-green-50 text-green-700 p-6 rounded-xl border border-green-100 mb-6">
+              <div className="flex justify-center mb-4">
+                <CheckCircle size={48} className="text-green-500" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Conta Criada!</h3>
+              <p className="text-sm mb-4">
+                Enviamos um link de confirmação para <strong>{email}</strong>.
+              </p>
+              <p className="text-xs text-green-600">
+                Verifique sua caixa de entrada (e spam) para ativar sua conta.
+              </p>
             </div>
+            
+            <Link
+              to="/login"
+              className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+            >
+              Ir para o Login <ArrowRight size={20} />
+            </Link>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="seu@email.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Mínimo 6 caracteres"
-                minLength={6}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <>
-                <UserPlus size={20} />
-                Criar Conta
-              </>
+        ) : (
+          <>
+            {error && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm text-center border border-red-100">
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        <p className="mt-8 text-center text-sm text-gray-600">
-          Já tem uma conta?{' '}
-          <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
-            Fazer login
-          </Link>
-        </p>
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    placeholder="Seu nome"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    placeholder="seu@email.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    placeholder="Mínimo 6 caracteres"
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <>
+                    <UserPlus size={20} />
+                    Criar Conta
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-gray-600">
+              Já tem uma conta?{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
+                Fazer login
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

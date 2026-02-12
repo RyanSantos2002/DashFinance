@@ -1,13 +1,25 @@
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/AuthGuard';
 import { Layout } from './components/Layout';
-import { Principal } from './pages/Principal';
-import { Dashboard } from './pages/Dashboard';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
-import { Settings } from './pages/Settings';
-import { Investments } from './pages/Investments';
-import { Plan } from './pages/Plan';
+import { ForgotPassword } from './components/ForgotPassword';
+import { UpdatePassword } from './components/UpdatePassword';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load pages for better performance
+const Principal = React.lazy(() => import('./pages/Principal').then(module => ({ default: module.Principal })));
+const Dashboard = React.lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Investments = React.lazy(() => import('./pages/Investments').then(module => ({ default: module.Investments })));
+const Settings = React.lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })));
+const Plan = React.lazy(() => import('./pages/Plan').then(module => ({ default: module.Plan })));
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-full min-h-[50vh]">
+    <Loader2 className="animate-spin text-blue-600" size={32} />
+  </div>
+);
 
 function App() {
   return (
@@ -16,6 +28,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
 
           {/* Protected Routes */}
           <Route
@@ -34,7 +48,9 @@ function App() {
             element={
               <AuthGuard>
                 <Layout>
-                  <Principal />
+                  <Suspense fallback={<PageLoader />}>
+                    <Principal />
+                  </Suspense>
                 </Layout>
               </AuthGuard>
             }
@@ -44,7 +60,9 @@ function App() {
             element={
               <AuthGuard>
                 <Layout>
-                  <Dashboard />
+                  <Suspense fallback={<PageLoader />}>
+                    <Dashboard />
+                  </Suspense>
                 </Layout>
               </AuthGuard>
             }
@@ -54,7 +72,9 @@ function App() {
             element={
               <AuthGuard>
                 <Layout>
-                  <Investments />
+                  <Suspense fallback={<PageLoader />}>
+                    <Investments />
+                  </Suspense>
                 </Layout>
               </AuthGuard>
             }
@@ -64,7 +84,9 @@ function App() {
             element={
               <AuthGuard>
                 <Layout>
-                  <Settings />
+                  <Suspense fallback={<PageLoader />}>
+                    <Settings />
+                  </Suspense>
                 </Layout>
               </AuthGuard>
             }
@@ -74,7 +96,9 @@ function App() {
             element={
               <AuthGuard>
                 <Layout>
-                  <Plan />
+                  <Suspense fallback={<PageLoader />}>
+                    <Plan />
+                  </Suspense>
                 </Layout>
               </AuthGuard>
             }
