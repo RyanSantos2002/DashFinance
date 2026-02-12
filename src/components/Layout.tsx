@@ -9,6 +9,7 @@ interface LayoutProps {
 }
 
 import { useNavigate, useLocation } from 'react-router-dom';
+import { AIAssistant } from './AIAssistant';
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -155,6 +156,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </main>
       </div>
+      <AIAssistant />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { User, DollarSign, Moon, Sun, Save, Camera } from 'lucide-react';
+import { User, DollarSign, Moon, Sun, Save, Camera, Sparkles } from 'lucide-react';
 
 export const Settings: React.FC = () => {
     const { currentUser, theme, toggleTheme, transactions, updateProfile, setFixedSalary } = useStore();
@@ -9,8 +9,14 @@ export const Settings: React.FC = () => {
     const [name, setName] = useState(currentUser?.name || '');
     const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || '');
     const [salary, setSalary] = useState<string>('');
+    const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+    const handleSaveApiKey = () => {
+        localStorage.setItem('gemini_api_key', apiKey);
+        setMessage({ type: 'success', text: 'Chave de IA salva com sucesso!' });
+    };
 
     // Initialize salary from existing fixed transaction
     useEffect(() => {
@@ -236,6 +242,49 @@ export const Settings: React.FC = () => {
                         Trocar Tema
                     </button>
                  </div>
+            </div>
+            {/* AI Integration */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-600">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Inteligência Artificial</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Configure o assistente RoboFin</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Chave de API do Google Gemini
+                        </label>
+                        <div className="relative">
+                            <input 
+                                type="password" 
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder="Cole sua chave aqui..."
+                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white transition-all font-mono text-sm"
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                           Para usar a IA conversacional, você precisa de uma chave gratuita do Google Gemini. 
+                           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">
+                               Gerar Chave Aqui
+                           </a>
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={handleSaveApiKey}
+                        className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                        <Save size={18} />
+                        Salvar Chave
+                    </button>
+                </div>
             </div>
         </div>
     );
