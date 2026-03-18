@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import type { Category, TransactionType } from '../types';
+import type { Category, TransactionType, PaymentMethod } from '../types';
 import { cn } from '../utils/cn';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, CreditCard as CardIcon } from 'lucide-react';
 
 const CATEGORIES: Category[] = [
   'Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Outros'
@@ -19,11 +19,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
     amount: '',
     type: 'expense' as TransactionType,
     category: 'Outros' as Category,
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
     isFixed: false,
     isInstallment: false,
-    installments: 2
+    installments: 2,
+    paymentMethod: 'Pix' as PaymentMethod,
+    creditCardId: ''
   });
+
+  const { creditCards } = useStore();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +48,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
           type: formData.type,
           category: formData.category,
           date: date.toISOString(),
+          paymentMethod: formData.paymentMethod,
+          creditCardId: formData.paymentMethod === 'Cartão' ? formData.creditCardId : undefined,
           installment: {
             current: i + 1,
             total: formData.installments
@@ -56,7 +62,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
         amount: Number(formData.amount),
         type: formData.type,
         category: formData.category,
-        date: new Date(formData.date).toISOString(),
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        paymentMethod: formData.paymentMethod,
+        creditCardId: formData.paymentMethod === 'Cartão' ? formData.creditCardId : undefined,
         isFixed: formData.isFixed,
       });
     }
@@ -155,7 +163,58 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
             </select>
         </div>
 
-        {/* Row 4: Date ("Increase size" - making it full width) */}
+
+        {/* Payment Method - Only for Expenses */}
+        {formData.type === 'expense' && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <CardIcon size={16} />
+                Método de Pagamento
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(['Pix', 'Dinheiro', 'Boleto', 'Cartão'] as PaymentMethod[]).map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, paymentMethod: method })}
+                    className={cn(
+                      "py-2 px-1 rounded-lg text-xs font-medium border transition-all",
+                      formData.paymentMethod === method
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    )}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {formData.paymentMethod === 'Cartão' && (
+              <div className="space-y-2 animate-fadeIn">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Selecionar Cartão</label>
+                {creditCards.length > 0 ? (
+                  <select
+                    required
+                    className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all"
+                    value={formData.creditCardId}
+                    onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
+                  >
+                    <option value="">Selecione um cartão...</option>
+                    {creditCards.map(card => (
+                      <option key={card.id} value={card.id}>{card.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-red-500">Nenhum cartão cadastrado. Vá em Cartões para adicionar.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Row 4: Date */}
         <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data</label>
             <input

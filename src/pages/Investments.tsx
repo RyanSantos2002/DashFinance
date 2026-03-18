@@ -24,7 +24,7 @@ export const Investments: React.FC = () => {
     // Form State
     const [name, setName] = useState('');
     const [type, setType] = useState<InvestmentType>('Ações');
-    const [amountInvested, setAmountInvested] = useState('');
+    const [avgPrice, setAvgPrice] = useState('');
     const [quantity, setQuantity] = useState('');
 
     useEffect(() => {
@@ -97,20 +97,21 @@ export const Investments: React.FC = () => {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const calculatedTotal = Number(avgPrice) * Number(quantity);
             // For new investments, we set currentValue same as invested initially
             // The live quote will update it visually afterwards
             await addInvestment({
                 name: name.toUpperCase(), // Force uppercase for tickers
                 type,
-                amountInvested: Number(amountInvested),
-                currentValue: Number(amountInvested), // Initial = Invested
+                amountInvested: calculatedTotal,
+                currentValue: calculatedTotal, // Initial = Invested
                 quantity: Number(quantity),
                 date: new Date().toISOString()
             });
             setIsModalOpen(false);
             // Reset form
             setName('');
-            setAmountInvested('');
+            setAvgPrice('');
             setQuantity('');
         } catch (error) {
             console.error(error);
@@ -313,11 +314,14 @@ export const Investments: React.FC = () => {
                                     <input required type="number" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full p-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
                                 </div>
                             </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor Total Investido (R$)</label>
-                                <input required type="number" step="0.01" value={amountInvested} onChange={e => setAmountInvested(e.target.value)} className="w-full p-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
-                                <p className="text-xs text-gray-500 mt-1">Quanto você tirou do bolso para comprar isso.</p>
+                                                        <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preço de Compra (Unitário)</label>
+                                <input required type="number" step="any" value={avgPrice} onChange={e => setAvgPrice(e.target.value)} className="w-full p-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" placeholder="0,00" />
+                                {avgPrice && quantity && (
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 font-medium">
+                                        Total a ser investido: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(avgPrice) * Number(quantity))}
+                                    </p>
+                                )}
                             </div>
                             
                             <div className="flex gap-2 pt-4">

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { LayoutDashboard, PieChart, Settings, Menu, LogOut, Moon, Sun, User, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, PieChart, Settings, Menu, LogOut, Moon, Sun, User, TrendingUp, List, CreditCard } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useStore } from '../store/useStore';
 import { MonthSelector } from './MonthSelector';
@@ -28,6 +28,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Principal', path: '/principal' },
+    { icon: List, label: 'Movimentações', path: '/transactions' },
+    { icon: CreditCard, label: 'Cartões', path: '/credit-cards' },
     { icon: PieChart, label: 'Dashboard', path: '/dashboard' },
     { icon: TrendingUp, label: 'Investimentos', path: '/investments' },
     { icon: Settings, label: 'Configurações', path: '/settings' },

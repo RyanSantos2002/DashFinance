@@ -1,4 +1,5 @@
 export type TransactionType = 'income' | 'expense';
+export type PaymentMethod = 'Pix' | 'Dinheiro' | 'Boleto' | 'Cartão';
 export type Theme = 'light' | 'dark';
 
 export interface User {
@@ -36,6 +37,16 @@ export interface Investment {
   date: string; // created_at
 }
 
+export interface CreditCard {
+  id: string;
+  userId: string;
+  name: string;
+  limit: number;
+  closingDay: number;
+  dueDay: number;
+  color: string;
+}
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -44,6 +55,8 @@ export interface Transaction {
   type: TransactionType;
   category: Category;
   date: string; // ISO string
+  paymentMethod?: PaymentMethod;
+  creditCardId?: string;
   isFixed?: boolean;
   installment?: {
     current: number;
@@ -72,4 +85,10 @@ export interface FinancialState {
     balance: number;
     reservation: number;
   };
+  
+  // Credit Cards
+  creditCards: CreditCard[];
+  fetchCreditCards: () => Promise<void>;
+  addCreditCard: (card: Omit<CreditCard, 'id' | 'userId'>) => Promise<void>;
+  removeCreditCard: (id: string) => Promise<void>;
 }

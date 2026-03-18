@@ -14,6 +14,8 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard').then(module => ({
 const Investments = React.lazy(() => import('./pages/Investments').then(module => ({ default: module.Investments })));
 const Settings = React.lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })));
 const Plan = React.lazy(() => import('./pages/Plan').then(module => ({ default: module.Plan })));
+const Transactions = React.lazy(() => import('./pages/Transactions').then(module => ({ default: module.Transactions })));
+const CreditCards = React.lazy(() => import('./pages/CreditCards').then(module => ({ default: module.CreditCards })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -92,12 +94,36 @@ function App() {
             }
           />
           <Route
-            path="/plan" // Assuming plan is protected or public? Keeping protected for now as user settings implies it.
+            path="/plan"
             element={
               <AuthGuard>
                 <Layout>
                   <Suspense fallback={<PageLoader />}>
                     <Plan />
+                  </Suspense>
+                </Layout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <AuthGuard>
+                <Layout>
+                  <Suspense fallback={<PageLoader />}>
+                    <Transactions />
+                  </Suspense>
+                </Layout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/credit-cards"
+            element={
+              <AuthGuard>
+                <Layout>
+                  <Suspense fallback={<PageLoader />}>
+                    <CreditCards />
                   </Suspense>
                 </Layout>
               </AuthGuard>

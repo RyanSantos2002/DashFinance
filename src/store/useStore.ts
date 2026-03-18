@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { type FinancialState, type Transaction, type User, type Investment } from '../types';
 import { transactionService } from '../services/transactions';
 import { investmentService } from '../services/investments';
+import { creditCardService } from '../services/creditCards';
 
 interface FinancialStore extends FinancialState {
     setCurrentUser: (user: User | null) => void;
@@ -20,6 +21,7 @@ interface FinancialStore extends FinancialState {
     isTransactionsLoading: boolean;
     isProfileLoading: boolean;
     isInvestmentsLoading: boolean;
+    isCreditCardsLoading: boolean;
 }
 
 export const useStore = create<FinancialStore>()(
@@ -31,11 +33,13 @@ export const useStore = create<FinancialStore>()(
             theme: 'light', 
             selectedDate: new Date().toISOString(),
             reservationBalance: 0,
+            creditCards: [],
             
             // Initial Loading States
             isTransactionsLoading: false,
             isProfileLoading: false,
             isInvestmentsLoading: false,
+            isCreditCardsLoading: false,
 
             login: () => {}, 
             logout: async () => {
@@ -67,7 +71,16 @@ export const useStore = create<FinancialStore>()(
                 
                 try {
                     const data = await transactionService.fetchTransactions(user.id);
-                    set({ transactions: data });
+                    
+                    // Also get reservation from profile
+                    const { supabase } = await import('../lib/supabase');
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('reservation_balance')
+                        .eq('id', user.id)
+                        .single();
+
+                    set({ transactions: data, reservationBalance: Number(profile?.reservation_balance || 0) });
                 } catch (error) {
                     console.error(error);
                 } finally {
@@ -120,7 +133,58 @@ export const useStore = create<FinancialStore>()(
                 }));
             },
 
-            addToReservation: (amount) => set((state) => ({ reservationBalance: (state.reservationBalance || 0) + amount })),
+            addToReservation: async (amount) => {
+                const { currentUser, reservationBalance } = get();
+                if (!currentUser) return;
+
+                const newBalance = (reservationBalance || 0) + amount;
+                set({ reservationBalance: newBalance });
+
+                try {
+                    const { supabase } = await import('../lib/supabase');
+                    await supabase
+                        .from('profiles')
+                        .update({ reservation_balance: newBalance })
+                        .eq('id', currentUser.id);
+                } catch (error) {
+                    console.error("Failed to sync reservation", error);
+                }
+            },
+            
+            // Credit Cards Actions
+            fetchCreditCards: async () => {
+                const user = get().currentUser;
+                if (!user) return;
+                set({ isCreditCardsLoading: true });
+                try {
+                    const data = await creditCardService.fetchCreditCards(user.id);
+                    set({ creditCards: data });
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    set({ isCreditCardsLoading: false });
+                }
+            },
+
+            addCreditCard: async (card) => {
+                const user = get().currentUser;
+                if (!user) return;
+                try {
+                    const saved = await creditCardService.addCreditCard({ ...card, userId: user.id });
+                    set(state => ({ creditCards: [...state.creditCards, saved] }));
+                } catch (error) {
+                    console.error(error);
+                }
+            },
+
+            removeCreditCard: async (id) => {
+                try {
+                    await creditCardService.removeCreditCard(id);
+                    set(state => ({ creditCards: state.creditCards.filter(c => c.id !== id) }));
+                } catch (error) {
+                    console.error(error);
+                }
+            },
             
             updateLayout: (page, layout) => set((state) => {
                 if (!state.currentUser) return state;

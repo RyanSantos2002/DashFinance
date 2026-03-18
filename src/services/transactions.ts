@@ -20,7 +20,9 @@ export const transactionService = {
             category: dbItem.category as Transaction['category'],
             date: dbItem.date,
             isFixed: dbItem.is_fixed,
-            installment: dbItem.installment
+            installment: dbItem.installment,
+            paymentMethod: dbItem.payment_method,
+            creditCardId: dbItem.credit_card_id
         }));
     },
 
@@ -35,7 +37,9 @@ export const transactionService = {
                 category: transaction.category,
                 date: transaction.date,
                 is_fixed: transaction.isFixed,
-                installment: transaction.installment
+                installment: transaction.installment,
+                payment_method: transaction.paymentMethod,
+                credit_card_id: transaction.creditCardId
             })
             .select()
             .single();

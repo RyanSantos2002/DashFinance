@@ -1,8 +1,9 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
 import { formatDate, formatCurrency } from '../utils/format';
-import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useNavigate } from 'react-router-dom';
 
 interface TransactionListProps {
   limit?: number;
@@ -10,16 +11,18 @@ interface TransactionListProps {
 
 export const TransactionList: React.FC<TransactionListProps> = ({ limit }) => {
   const { transactions, removeTransaction, selectedDate } = useStore();
+  const navigate = useNavigate();
 
   const sortedTransactions = [...transactions]
     .filter(t => {
+      if (!limit) return true;
       const tDate = new Date(t.date);
       const sDate = new Date(selectedDate);
       return tDate.getMonth() === sDate.getMonth() && 
              tDate.getFullYear() === sDate.getFullYear();
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, limit); // Apply limit
+    .slice(0, limit);
 
   if (transactions.length === 0) {
     return (
@@ -34,7 +37,18 @@ export const TransactionList: React.FC<TransactionListProps> = ({ limit }) => {
 
   return (
     <Container {...containerProps}>
-      {!limit && (
+      {limit ? (
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Últimas Movimentações</h3>
+          <button 
+            onClick={() => navigate('/transactions')}
+            className="text-primary dark:text-blue-400 text-sm font-medium flex items-center gap-1 hover:underline"
+          >
+            Ver Tudo
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      ) : (
         <div className="p-6 border-b border-gray-100 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Histórico Recente</h3>
         </div>
