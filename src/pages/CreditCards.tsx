@@ -42,7 +42,7 @@ export const CreditCards: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meus Cartões</h1>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition-colors"
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-colors"
         >
           <Plus size={20} />
           Novo Cartão
@@ -210,7 +210,7 @@ export const CreditCards: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-primary text-white rounded hover:bg-slate-800"
+                  className="flex-1 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors font-medium"
                 >
                   Cadastrar
                 </button>

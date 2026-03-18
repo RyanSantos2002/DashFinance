@@ -10,30 +10,42 @@ const CATEGORIES: Category[] = [
 
 interface TransactionFormProps {
   onSuccess?: () => void;
+  transaction?: any; // If provided, we are in edit mode
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) => {
-  const addTransaction = useStore((state) => state.addTransaction);
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, transaction }) => {
+  const isEditing = !!transaction;
+  const { addTransaction, editTransaction, creditCards } = useStore();
+  
   const [formData, setFormData] = useState({
-    description: '',
-    amount: '',
-    type: 'expense' as TransactionType,
-    category: 'Outros' as Category,
-    date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
-    isFixed: false,
+    description: transaction?.description || '',
+    amount: transaction?.amount?.toString() || '',
+    type: transaction?.type || 'expense' as TransactionType,
+    category: transaction?.category || 'Outros' as Category,
+    date: transaction?.date ? new Date(transaction.date).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+    isFixed: transaction?.isFixed || false,
     isInstallment: false,
     installments: 2,
-    paymentMethod: 'Pix' as PaymentMethod,
-    creditCardId: ''
+    paymentMethod: transaction?.paymentMethod || 'Pix' as PaymentMethod,
+    creditCardId: transaction?.creditCardId || ''
   });
-
-  const { creditCards } = useStore();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || !formData.amount) return;
 
-    if (formData.isInstallment && formData.type === 'expense') {
+    if (isEditing) {
+      editTransaction(transaction.id, {
+        description: formData.description,
+        amount: Number(formData.amount),
+        type: formData.type,
+        category: formData.category,
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        paymentMethod: formData.paymentMethod,
+        creditCardId: formData.paymentMethod === 'Cartão' ? formData.creditCardId : undefined,
+        isFixed: formData.isFixed,
+      });
+    } else if (formData.isInstallment && formData.type === 'expense') {
       const totalAmount = Number(formData.amount);
       const installmentAmount = totalAmount / formData.installments;
       const baseDate = new Date(formData.date);
@@ -88,7 +100,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors h-full flex flex-col">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
         <PlusCircle size={20} className="text-primary dark:text-blue-400" />
-        Nova Transação
+        {isEditing ? 'Editar Transação' : 'Nova Transação'}
       </h3>
       <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col">
         {/* Row 1: Description and Value */}
@@ -181,8 +193,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
                     className={cn(
                       "py-2 px-1 rounded-lg text-xs font-medium border transition-all",
                       formData.paymentMethod === method
-                        ? "bg-primary text-white border-primary"
-                        : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        ? "bg-primary text-white border-primary dark:bg-blue-600 dark:border-blue-500"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     )}
                   >
                     {method}
@@ -274,7 +286,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess }) =
           type="submit"
           className="w-full bg-primary text-white font-medium py-3 rounded-lg hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-sm mt-auto active:scale-[0.99] h-[50px] flex items-center justify-center"
         >
-          Adicionar Transação
+          {isEditing ? 'Salvar Alterações' : 'Adicionar Transação'}
         </button>
       </form>
     </div>

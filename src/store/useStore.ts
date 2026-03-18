@@ -16,6 +16,7 @@ interface FinancialStore extends FinancialState {
     fetchInvestments: () => Promise<void>;
     addInvestment: (investment: Omit<Investment, 'id' | 'userId'>) => Promise<void>;
     removeInvestment: (id: string) => Promise<void>;
+    editInvestment: (id: string, updated: Partial<Investment>) => Promise<void>;
 
     // Loading States
     isTransactionsLoading: boolean;
@@ -124,13 +125,20 @@ export const useStore = create<FinancialStore>()(
                 }
             },
 
-            editTransaction: (id, updated) => {
-                // TODO: Implement update in service
+            editTransaction: async (id, updated) => {
+                const prev = get().transactions;
                 set((state) => ({
                     transactions: state.transactions.map((t) =>
                         t.id === id ? { ...t, ...updated } : t
                     ),
                 }));
+
+                try {
+                    await transactionService.updateTransaction(id, updated);
+                } catch (error) {
+                    console.error("Failed to update transaction", error);
+                    set({ transactions: prev }); // Rollback
+                }
             },
 
             addToReservation: async (amount) => {
@@ -328,6 +336,22 @@ export const useStore = create<FinancialStore>()(
                      console.error(error);
                      set({ investments: prev });
                  }
+            },
+
+            editInvestment: async (id, updated) => {
+                const prev = get().investments;
+                set((state) => ({
+                    investments: state.investments.map((i) =>
+                        i.id === id ? { ...i, ...updated } : i
+                    ),
+                }));
+
+                try {
+                    await investmentService.updateInvestment(id, updated);
+                } catch (error) {
+                    console.error("Failed to update investment", error);
+                    set({ investments: prev }); // Rollback
+                }
             },
 
             getSummary: () => {

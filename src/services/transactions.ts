@@ -59,5 +59,24 @@ export const transactionService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async updateTransaction(id: string, updates: Partial<Transaction>) {
+        const dbUpdates: any = {};
+        if (updates.description) dbUpdates.description = updates.description;
+        if (updates.amount !== undefined) dbUpdates.amount = Number(updates.amount);
+        if (updates.type) dbUpdates.type = updates.type;
+        if (updates.category) dbUpdates.category = updates.category;
+        if (updates.date) dbUpdates.date = updates.date;
+        if (updates.paymentMethod) dbUpdates.payment_method = updates.paymentMethod;
+        if (updates.creditCardId !== undefined) dbUpdates.credit_card_id = updates.creditCardId;
+        if (updates.isFixed !== undefined) dbUpdates.is_fixed = updates.isFixed;
+
+        const { error } = await supabase
+            .from('transactions')
+            .update(dbUpdates)
+            .eq('id', id);
+
+        if (error) throw error;
     }
 };

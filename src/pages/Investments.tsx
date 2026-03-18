@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { TrendingUp, Plus, Trash2, Wallet, PieChart as PieIcon, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
+import { TrendingUp, Plus, Trash2, Wallet, PieChart as PieIcon, ArrowUpRight, ArrowDownRight, RefreshCw, Pencil } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import type { InvestmentType, Investment } from '../types';
@@ -18,6 +18,7 @@ export const Investments: React.FC = () => {
     const currentUser = store.currentUser;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
     
@@ -58,6 +59,21 @@ export const Investments: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [investments.length, JSON.stringify(investments.map(i => i.name))]);
 
+    useEffect(() => {
+        if (editingInvestment) {
+            setName(editingInvestment.name);
+            setType(editingInvestment.type);
+            setAvgPrice((editingInvestment.amountInvested / (editingInvestment.quantity || 1)).toString());
+            setQuantity(editingInvestment.quantity.toString());
+            setIsModalOpen(true);
+        } else {
+            setName('');
+            setType('Ações');
+            setAvgPrice('');
+            setQuantity('');
+        }
+    }, [editingInvestment]);
+
     // Helper to get current value (Live or Fallback)
     const getCurrentValue = (investment: Investment) => {
         const livePrice = prices[investment.name];
@@ -94,28 +110,35 @@ export const Investments: React.FC = () => {
         ],
     };
 
-    const handleAdd = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const calculatedTotal = Number(avgPrice) * Number(quantity);
-            // For new investments, we set currentValue same as invested initially
-            // The live quote will update it visually afterwards
-            await addInvestment({
-                name: name.toUpperCase(), // Force uppercase for tickers
-                type,
-                amountInvested: calculatedTotal,
-                currentValue: calculatedTotal, // Initial = Invested
-                quantity: Number(quantity),
-                date: new Date().toISOString()
-            });
+            if (editingInvestment) {
+                await store.editInvestment(editingInvestment.id, {
+                    name: name.toUpperCase(),
+                    type,
+                    amountInvested: calculatedTotal,
+                    quantity: Number(quantity)
+                });
+            } else {
+                await addInvestment({
+                    name: name.toUpperCase(),
+                    type,
+                    amountInvested: calculatedTotal,
+                    currentValue: calculatedTotal,
+                    quantity: Number(quantity),
+                    date: new Date().toISOString()
+                });
+            }
             setIsModalOpen(false);
-            // Reset form
+            setEditingInvestment(null);
             setName('');
             setAvgPrice('');
             setQuantity('');
         } catch (error) {
             console.error(error);
-            alert("Erro ao salvar o investimento. Verifique se você rodou o script SQL no Supabase!");
+            alert("Erro ao salvar o investimento.");
         }
     };
 
@@ -135,7 +158,7 @@ export const Investments: React.FC = () => {
                 </div>
                 
                 <button 
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => { setEditingInvestment(null); setIsModalOpen(true); }}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                     <Plus size={20} />
@@ -271,11 +294,24 @@ export const Investments: React.FC = () => {
                                                           </span>
                                                       </div>
                                                   </td>
-                                                  <td className="py-3 text-right">
-                                                      <button onClick={() => removeInvestment(item.id)} className="text-red-500 hover:text-red-700 p-1 opacity-50 hover:opacity-100 transition-opacity">
-                                                          <Trash2 size={16} />
-                                                      </button>
-                                                  </td>
+                                                   <td className="py-3 text-right">
+                                                       <div className="flex items-center justify-end gap-2">
+                                                            <button 
+                                                                onClick={() => { setEditingInvestment(item); setIsModalOpen(true); }} 
+                                                                className="text-gray-400 hover:text-blue-500 p-1 transition-colors"
+                                                                title="Editar"
+                                                            >
+                                                                <Pencil size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => { if(confirm('Excluir investimento?')) removeInvestment(item.id) }} 
+                                                                className="text-gray-400 hover:text-red-500 p-1 transition-colors"
+                                                                title="Excluir"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                       </div>
+                                                   </td>
                                               </tr>
                                           );
                                       })
@@ -290,8 +326,10 @@ export const Investments: React.FC = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-xl">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Novo Investimento</h3>
-                        <form onSubmit={handleAdd} className="space-y-4">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                            {editingInvestment ? 'Editar Investimento' : 'Novo Investimento'}
+                        </h3>
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código do Ativo (Ticker)</label>
                                 <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PETR4, MXRF11, IVVB11..." className="w-full p-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white uppercase" />
@@ -325,8 +363,10 @@ export const Investments: React.FC = () => {
                             </div>
                             
                             <div className="flex gap-2 pt-4">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Adicionar</button>
+                                <button type="button" onClick={() => { setIsModalOpen(false); setEditingInvestment(null); }} className="flex-1 px-4 py-2 border dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    {editingInvestment ? 'Salvar' : 'Adicionar'}
+                                </button>
                             </div>
                         </form>
                     </div>

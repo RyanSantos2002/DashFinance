@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatDate, formatCurrency } from '../utils/format';
-import { Trash2, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Search, Calendar, X, Pencil } from 'lucide-react';
+import { TransactionForm } from '../components/TransactionForm';
 import { cn } from '../utils/cn';
 import { type TransactionType, type Category } from '../types';
 
@@ -14,13 +15,21 @@ export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | Category>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
   const filteredTransactions = transactions
     .filter(t => {
       const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
       const matchesCategory = categoryFilter === 'all' || t.category === categoryFilter;
-      return matchesSearch && matchesType && matchesCategory;
+      
+      const transactionDate = new Date(t.date).getTime();
+      const matchesStartDate = !startDate || transactionDate >= new Date(startDate).getTime();
+      const matchesEndDate = !endDate || transactionDate <= new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1); // include entire end day
+      
+      return matchesSearch && matchesType && matchesCategory && matchesStartDate && matchesEndDate;
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -41,8 +50,34 @@ export const Transactions: React.FC = () => {
             />
           </div>
           
-          <div className="flex gap-2">
-             <select
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary transition-all">
+              <Calendar size={16} className="text-gray-400" />
+              <input
+                type="date"
+                className="bg-transparent border-none outline-none text-sm dark:text-white"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <span className="text-gray-400">até</span>
+              <input
+                type="date"
+                className="bg-transparent border-none outline-none text-sm dark:text-white"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              {(startDate || endDate) && (
+                <button 
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-red-500"
+                  title="Limpar datas"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <select
               className="px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
@@ -108,16 +143,26 @@ export const Transactions: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => {
-                        if (confirm('Deseja excluir esta transação?')) {
-                          removeTransaction(t.id);
-                        }
-                      }}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setEditingTransaction(t)}
+                        className="text-gray-400 hover:text-blue-500 transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Deseja excluir esta transação?')) {
+                            removeTransaction(t.id);
+                          }
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -130,6 +175,26 @@ export const Transactions: React.FC = () => {
           )}
         </div>
       </div>
+
+      {editingTransaction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="w-full max-w-lg relative">
+            <div className="max-h-[90vh] overflow-y-auto rounded-xl">
+              <TransactionForm 
+                transaction={editingTransaction} 
+                onSuccess={() => setEditingTransaction(null)} 
+              />
+            </div>
+            <button 
+              onClick={() => setEditingTransaction(null)}
+              className="absolute -top-12 -right-0 md:-right-12 text-white hover:text-gray-200 transition-colors"
+              title="Fechar"
+            >
+              <X size={32} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
