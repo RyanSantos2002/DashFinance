@@ -7,14 +7,8 @@ import { FinancialHealthWidget, SmartAdvisorWidget } from '../components/widgets
 import { AnnualSummary } from '../components/AnnualSummary';
 
 export const Principal: React.FC = () => {
-  const { currentUser, fetchTransactions, getSummary } = useStore();
+  const { currentUser, getSummary } = useStore();
   const summary = getSummary();
-
-  React.useEffect(() => {
-    if (currentUser) {
-        fetchTransactions();
-    }
-  }, [fetchTransactions, currentUser]);
 
 
   return (

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate } from '../utils/format';
-import { Plus, CreditCard as CardIcon, Trash2 } from 'lucide-react';
+import { Plus, CreditCard as CardIcon, Trash2, ChevronLeft, ChevronRight, X, Calendar, ArrowUpRight } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { type CreditCard } from '../types';
 
 export const CreditCards: React.FC = () => {
-  const { creditCards, transactions, addCreditCard, removeCreditCard, fetchCreditCards } = useStore();
+  const { creditCards, transactions, addCreditCard, removeCreditCard } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newCard, setNewCard] = useState({
     name: '',
@@ -14,10 +15,8 @@ export const CreditCards: React.FC = () => {
     dueDay: 10,
     color: '#3b82f6'
   });
-
-  useEffect(() => {
-    fetchCreditCards();
-  }, []);
+  const [selectedCardForStatement, setSelectedCardForStatement] = useState<CreditCard | null>(null);
+  const [statementDate, setStatementDate] = useState(new Date());
 
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +54,11 @@ export const CreditCards: React.FC = () => {
           const totalSpent = statement.reduce((acc, t) => acc + t.amount, 0);
           
           return (
-            <div key={card.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col transition-colors">
+            <div 
+              key={card.id} 
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col transition-all hover:shadow-md group cursor-pointer"
+              onClick={() => setSelectedCardForStatement(card)}
+            >
               {/* Virtual Card Rendering */}
               <div 
                 className="p-6 text-white relative h-48 flex flex-col justify-between"
@@ -114,6 +117,13 @@ export const CreditCards: React.FC = () => {
                     {statement.length === 0 && <p className="text-xs text-gray-400 italic">Nenhum lançamento neste cartão.</p>}
                   </div>
                 </div>
+                
+                <button 
+                  className="w-full py-2 text-sm font-medium text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  Ver Fatura Detalhada
+                  <ArrowUpRight size={16} />
+                </button>
               </div>
             </div>
           );
@@ -127,6 +137,7 @@ export const CreditCards: React.FC = () => {
         )}
       </div>
 
+      {/* Add Card Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl transition-colors">
@@ -216,6 +227,148 @@ export const CreditCards: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Card Statement Modal */}
+      {selectedCardForStatement && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Modal Header with Card Gradient */}
+            <div 
+              className="p-8 text-white relative flex-shrink-0"
+              style={{ backgroundColor: selectedCardForStatement.color }}
+            >
+              <button 
+                onClick={() => setSelectedCardForStatement(null)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-white/20 rounded-2xl">
+                  <CardIcon size={32} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedCardForStatement.name}</h2>
+                  <p className="text-white/70 text-sm">Fatura e Detalhes</p>
+                </div>
+              </div>
+
+              {/* Month Selector inside header */}
+              <div className="flex items-center justify-between bg-black/10 rounded-2xl p-4 backdrop-blur-sm border border-white/10">
+                <button 
+                  onClick={() => setStatementDate(new Date(statementDate.setMonth(statementDate.getMonth() - 1)))}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                
+                <div className="text-center">
+                  <p className="text-xs uppercase tracking-widest opacity-70 mb-1">Período Selecionado</p>
+                  <p className="text-lg font-bold">
+                    {statementDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => setStatementDate(new Date(statementDate.setMonth(statementDate.getMonth() + 1)))}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-8 scrollbar-thin">
+              {(() => {
+                const filteredTransactions = transactions.filter(t => {
+                  const tDate = new Date(t.date);
+                  return t.creditCardId === selectedCardForStatement.id &&
+                         tDate.getMonth() === statementDate.getMonth() &&
+                         tDate.getFullYear() === statementDate.getFullYear();
+                });
+
+                const monthlyTotal = filteredTransactions.reduce((acc, t) => acc + t.amount, 0);
+
+                return (
+                  <div className="space-y-8">
+                    {/* Monthly Stats Summary */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total na Fatura</p>
+                        <p className="text-xl font-bold text-red-500">{formatCurrency(monthlyTotal)}</p>
+                      </div>
+                      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Limite do Cartão</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(selectedCardForStatement.limit)}</p>
+                      </div>
+                    </div>
+
+                    {/* Transaction List */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                         <h3 className="font-bold text-gray-800 dark:text-gray-200">Lançamentos</h3>
+                         <span className="text-xs text-gray-500">{filteredTransactions.length} itens</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        {filteredTransactions.map(t => (
+                          <div key={t.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                            <div className="flex items-center gap-4">
+                              <div className="p-2 bg-white dark:bg-gray-700 rounded-xl shadow-sm">
+                                <Calendar size={18} className="text-gray-400" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">{t.description}</p>
+                                <p className="text-xs text-gray-500">{formatDate(t.date)} • {t.category}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-red-500">-{formatCurrency(t.amount)}</p>
+                              {t.installment && (
+                                <p className="text-[10px] text-blue-500 font-medium">Parcela {t.installment.current}/{t.installment.total}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {filteredTransactions.length === 0 && (
+                          <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                            <div className="bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Calendar size={24} className="opacity-20" />
+                            </div>
+                            <p>Nenhuma transação encontrada para este período.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
+               <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm">
+                     <p className="text-gray-500 dark:text-gray-400">Vencimento da Fatura</p>
+                     <p className="font-bold text-gray-900 dark:text-white">Dia {selectedCardForStatement.dueDay}</p>
+                  </div>
+                  <div className="text-right text-sm">
+                     <p className="text-gray-500 dark:text-gray-400">Fechamento</p>
+                     <p className="font-bold text-gray-900 dark:text-white">Dia {selectedCardForStatement.closingDay}</p>
+                  </div>
+               </div>
+               <button 
+                onClick={() => setSelectedCardForStatement(null)}
+                className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:opacity-90 transition-opacity"
+               >
+                 Fechar Fatura
+               </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,11 +11,8 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 export const Investments: React.FC = () => {
     const store = useStore();
     const investments = store.investments || [];
-    const fetchInvestments = store.fetchInvestments;
-    const fetchTransactions = store.fetchTransactions;
     const addInvestment = store.addInvestment;
     const removeInvestment = store.removeInvestment;
-    const currentUser = store.currentUser;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
@@ -28,13 +25,8 @@ export const Investments: React.FC = () => {
     const [avgPrice, setAvgPrice] = useState('');
     const [quantity, setQuantity] = useState('');
 
-    useEffect(() => {
-        if (currentUser) {
-            fetchInvestments();
-            fetchTransactions();
-        }
-    }, [currentUser, fetchInvestments, fetchTransactions]);
-
+    // Removed initial fetch as it is now handled by Layout
+    
     // Fetch Live Quotes when investments change
     useEffect(() => {
         const fetchLivePrices = async () => {

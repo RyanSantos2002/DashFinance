@@ -23,6 +23,7 @@ interface FinancialStore extends FinancialState {
     isProfileLoading: boolean;
     isInvestmentsLoading: boolean;
     isCreditCardsLoading: boolean;
+    fetchAllData: () => Promise<void>;
 }
 
 export const useStore = create<FinancialStore>()(
@@ -378,6 +379,18 @@ export const useStore = create<FinancialStore>()(
                     balance: totalIncome - totalExpense,
                     reservation: reservationBalance || 0
                 };
+            },
+
+            fetchAllData: async () => {
+                const user = get().currentUser;
+                if (!user) return;
+                
+                // Fetch everything in parallel
+                await Promise.allSettled([
+                    get().fetchTransactions(),
+                    get().fetchCreditCards(),
+                    get().fetchInvestments()
+                ]);
             },
         }),
         {

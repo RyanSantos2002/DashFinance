@@ -16,9 +16,12 @@ export const formatDate = (dateString: string) => {
   }
 
   const date = new Date(dateString);
-  // Add 12 hours if it looks like a UTC midnight string to push it into the correct local day
-  if (dateString.endsWith('T00:00:00.000Z') || dateString.endsWith('Z')) {
-    date.setHours(date.getHours() + 12);
+  
+  // Add 12 hours ONLY if it's exactly at midnight UTC (T00:00:00) 
+  // to push it into the correct local day for users in negative timezones.
+  // This avoids double-shifting dates that already have a safe time offset (like T12:00:00).
+  if (dateString.includes('T00:00:00')) {
+    date.setUTCHours(date.getUTCHours() + 12);
   }
   
   return new Intl.DateTimeFormat('pt-BR').format(date);

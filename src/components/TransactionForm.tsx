@@ -48,10 +48,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, tra
     } else if (formData.isInstallment && formData.type === 'expense') {
       const totalAmount = Number(formData.amount);
       const installmentAmount = totalAmount / formData.installments;
-      const baseDate = new Date(formData.date);
 
       for (let i = 0; i < formData.installments; i++) {
-        const date = new Date(baseDate);
+        const date = new Date(formData.date + 'T12:00:00');
         date.setMonth(date.getMonth() + i);
 
         addTransaction({

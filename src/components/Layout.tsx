@@ -13,7 +13,7 @@ import { AIAssistant } from './AIAssistant';
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const { theme, toggleTheme, currentUser, logout } = useStore();
+  const { theme, toggleTheme, currentUser, logout, fetchAllData } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,6 +25,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (currentUser) {
+      fetchAllData();
+    }
+  }, [currentUser, fetchAllData]);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Principal', path: '/principal' },
